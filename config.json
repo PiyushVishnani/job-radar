@@ -1,0 +1,57 @@
+{
+  "telegram": {
+    "bot_token": "",
+    "chat_id": ""
+  },
+  "email": {
+    "from": "",
+    "to": "",
+    "app_password": "",
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587
+  },
+  "sources": {
+    "arbeitnow": ["java"],
+
+    "adzuna": [
+      {
+        "app_id": "",
+        "app_key": "",
+        "country": "in",
+        "what": "java backend developer",
+        "pages": 3
+      }
+    ],
+
+    "greenhouse": [],
+    "lever": [],
+    "ashby": [],
+    "smartrecruiters": [],
+    "workable": [],
+    "recruitee": [],
+    "personio": [],
+
+    "workday": [
+      {
+        "tenant": "csgi",
+        "host": "csgi.wd5",
+        "site": "CSGCareers",
+        "search": "Java"
+      },
+      {
+        "tenant": "svb",
+        "host": "svb.wd5",
+        "site": "firstcitizensindia",
+        "search": "Java"
+      },
+      {
+        "tenant": "mastercard",
+        "host": "mastercard.wd1",
+        "site": "CorporateCareers",
+        "search": "Java"
+      }
+    ],
+
+    "remoteok": ["all"]
+  }
+}
