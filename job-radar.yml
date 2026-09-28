@@ -1,0 +1,36 @@
+name: Job Radar
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # har 30 minute
+  workflow_dispatch:
+
+permissions:
+  contents: write            # seen_jobs.json wapas commit karne ke liye
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests
+
+      - name: Scan jobs
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: python job_radar.py
+
+      - name: Save seen jobs
+        run: |
+          git config user.name  "job-radar-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add seen_jobs.json
+          git diff --staged --quiet || git commit -m "update seen jobs"
+          git push
