@@ -1,8 +1,8 @@
 name: Job Radar
 
 on:
-  schedule:
-    - cron: "17 * * * *"   # har 1 hour
+  repository_dispatch:
+    types: [job-radar-hourly]
   workflow_dispatch:
 
 permissions:
@@ -24,10 +24,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install requests
-
-      - name: Refresh ATS registry daily
-        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 0 * * *'
-        run: python ats_discovery.py
 
       - name: Scan jobs
         env:
