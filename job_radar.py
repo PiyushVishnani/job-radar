@@ -459,66 +459,243 @@ def fetch_personio(slug):
 
 
 def fetch_workday(cfg):
-    """Fetch public Workday CXS jobs. Correct host is tenant.wdN.myworkdayjobs.com."""
+    """
+    Fetch public Workday CXS jobs and generate canonical Workday URLs.
+
+    Workday job URLs are built from:
+        https://<tenant>.<host>.myworkdayjobs.com/<locale>/<site><externalPath>
+
+    The locale is discovered from the Workday career-site URL instead
+    of being hardcoded to en-US.
+    """
     if not isinstance(cfg, dict):
         return
-    tenant = str(cfg.get('tenant', '')).strip()
-    host = str(cfg.get('host', '')).strip().replace('https://', '').replace('http://', '')
-    site = str(cfg.get('site', '')).strip()
+
+    tenant = str(cfg.get("tenant", "")).strip()
+    host = str(cfg.get("host", "")).strip()
+    site = str(cfg.get("site", "")).strip()
+
     if not tenant or not host or not site:
         return
-    host = host.split('.myworkdayjobs.com')[0].strip('.')
-    if '.wd' in host:
-        host = host.split('.')[-1]
-    base = f'https://{tenant}.{host}.myworkdayjobs.com'
-    api = f'{base}/wday/cxs/{tenant}/{site}/jobs'
-    # Was 5 search terms per tenant (5x the requests for every single Workday
-    # board). "Java" alone already surfaces Java/Spring/full-stack postings —
-    # our own title+description filter downstream does the real narrowing.
-    # Add a second term only if the caller explicitly configured one.
+
+    # Normalize host
+    host = (
+        host.replace("https://", "")
+            .replace("http://", "")
+            .strip("/")
+    )
+
+    # Example:
+    # ntrs.wd1.myworkdayjobs.com
+    # issgovernance.wd1.myworkdayjobs.com
+    # kla.wd1.myworkdayjobs.com
+    if ".myworkdayjobs.com" not in host:
+        host = f"{host}.myworkdayjobs.com"
+
+    base = f"https://{host}"
+
+    # ---------------------------------------------------------
+    # Discover canonical locale from the Workday career site
+    # ---------------------------------------------------------
+    locale = "en-US"
+
+    try:
+        career_url = f"{base}/{site}"
+
+        r = requests.get(
+            career_url,
+            headers={
+                **HEADERS,
+                "Accept": "text/html,application/xhtml+xml"
+            },
+            allow_redirects=True,
+            timeout=15
+        )
+
+        # Workday often redirects:
+        #
+        # /northerntrust
+        #      ↓
+        # /en-GB/northerntrust
+        #
+        # /ISScareers
+        #      ↓
+        # /en-US/ISScareers
+        #
+        final_url = str(r.url or "")
+
+        marker = ".myworkdayjobs.com/"
+        if marker in final_url:
+            final_path = final_url.split(marker, 1)[1]
+
+            parts = [
+                p for p in final_path.split("/")
+                if p
+            ]
+
+            # If first path segment looks like a locale,
+            # use it.
+            if parts and (
+                len(parts[0]) == 5
+                and parts[0][2] == "-"
+            ):
+                locale = parts[0]
+
+    except requests.RequestException:
+        pass
+
+    # ---------------------------------------------------------
+    # Workday CXS API
+    # ---------------------------------------------------------
+    api = (
+        f"{base}/wday/cxs/"
+        f"{tenant}/{site}/jobs"
+    )
+
     terms = []
-    for q in [cfg.get('search', 'Java'), cfg.get('search2')]:
-        q = str(q or '').strip()
-        if q and q.lower() not in {x.lower() for x in terms}:
+
+    for q in [
+        cfg.get("search", "Java"),
+        cfg.get("search2")
+    ]:
+        q = str(q or "").strip()
+
+        if q and q.lower() not in {
+            x.lower() for x in terms
+        }:
             terms.append(q)
+
     seen = set()
+
     for term in terms:
         offset = 0
-        while offset < 200:
+
+        while offset < 2000:
+
+            payload = {
+                "appliedFacets": {},
+                "limit": 20,
+                "offset": offset,
+                "searchText": term
+            }
+
             try:
-                r = requests.post(api, json={'appliedFacets': {}, 'limit': 20, 'offset': offset, 'searchText': term}, headers={**HEADERS, 'Accept': 'application/json', 'Content-Type': 'application/json'}, timeout=15)
+                r = requests.post(
+                    api,
+                    json=payload,
+                    headers={
+                        **HEADERS,
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    timeout=20
+                )
             except requests.RequestException:
                 return
+
             if r.status_code != 200:
                 return
+
             try:
                 data = r.json()
             except ValueError:
                 return
-            posts = data.get('jobPostings') or [] if isinstance(data, dict) else []
+
+            if not isinstance(data, dict):
+                return
+
+            posts = data.get("jobPostings") or []
+
             if not posts:
                 break
+
             for j in posts:
-                path = str(j.get('externalPath') or '').strip()
-                if not path: continue
-                if not path.startswith('/'): path = '/' + path
-                jid = f'workday:{tenant}:{path}'
-                if jid in seen: continue
+
+                if not isinstance(j, dict):
+                    continue
+
+                path = str(
+                    j.get("externalPath") or ""
+                ).strip()
+
+                if not path:
+                    continue
+
+                if not path.startswith("/"):
+                    path = "/" + path
+
+                jid = f"workday:{tenant}:{path}"
+
+                if jid in seen:
+                    continue
+
                 seen.add(jid)
-                title = j.get('title','')
-                location = j.get('locationsText','') or ''
-                job_url = f'{base}{path}' if path.startswith('/job/') else f'{base}/en-US/{site}{path}'
-                # Workday frequently puts the city in the externalPath while
-                # locationsText is empty. Keep that URL as location evidence.
+
+                title = str(
+                    j.get("title") or ""
+                ).strip()
+
+                location = str(
+                    j.get("locationsText") or ""
+                ).strip()
+
+                # -------------------------------------------------
+                # IMPORTANT:
+                #
+                # Workday API normally returns:
+                #
+                # /job/Pune-India/Some-Job_R123456
+                #
+                # Browser URL needs:
+                #
+                # /en-US/<site>/job/...
+                #
+                # or
+                #
+                # /en-GB/<site>/job/...
+                #
+                # depending on the Workday board.
+                # -------------------------------------------------
+
+                if path.startswith("/en-"):
+                    # Already contains locale.
+                    job_url = f"{base}{path}"
+
+                else:
+                    job_url = (
+                        f"{base}/"
+                        f"{locale}/"
+                        f"{site}"
+                        f"{path}"
+                    )
+
                 if not location:
-                    location = path.replace('-', ' ').replace('_', ' ')
-                description = ' '.join(j.get('bulletFields') or [])
-                yield {'id': jid, 'title': title, 'company': tenant, 'location': location, 'url': job_url, 'description': description, 'source': 'Workday'}
+                    location = (
+                        path
+                        .replace("-", " ")
+                        .replace("_", " ")
+                    )
+
+                description = " ".join(
+                    j.get("bulletFields") or []
+                )
+
+                yield {
+                    "id": jid,
+                    "title": title,
+                    "company": tenant,
+                    "location": location,
+                    "url": job_url,
+                    "description": description,
+                    "source": "Workday"
+                }
+
             offset += 20
-            total = data.get('total', 0)
-            if total and offset >= total: break
 
+            total = data.get("total", 0)
 
+            if total and offset >= total:
+                break
 
 
 def fetch_oraclecloud(cfg):
