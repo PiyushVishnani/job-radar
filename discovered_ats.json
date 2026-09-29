@@ -2975,7 +2975,10 @@
     "trivelta",
     "trove",
     "trovohealth",
-    "trueanomalyinc"
+    "trueanomalyinc",
+    "forgehealth",
+    "homesolutions",
+    "laporteusa"
   ],
   "lever": [
     "100ms",
@@ -15071,6 +15074,826 @@
     {
       "host": "emvz.fa.em1.ukg.oraclecloud.com",
       "site": "des-jobs",
+      "language": "en"
+    },
+    {
+      "host": "fa-evxn-saasfaukgovprod1.fa.ocs.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "fa-evxn-saasfaukgovprod1.fa.ocs.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "fa-evzn-saasfaukgovprod1.fa.ocs.oraclecloud.com",
+      "site": "UKRI-Careers",
+      "language": "en"
+    },
+    {
+      "host": "iaavas.fa.ocs.oraclecloud.com",
+      "site": "CX_4001",
+      "language": "en"
+    },
+    {
+      "host": "ecwr.fa.us2.oraclecloud.com",
+      "site": "work4estes",
+      "language": "en"
+    },
+    {
+      "host": "edix.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "eduu.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "edqv.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "edyy.fa.us2.oraclecloud.com",
+      "site": "CX_2007",
+      "language": "en"
+    },
+    {
+      "host": "edyy.fa.us2.oraclecloud.com",
+      "site": "CX_13015",
+      "language": "en"
+    },
+    {
+      "host": "edmn.fa.us2.oraclecloud.com",
+      "site": "CX_8001",
+      "language": "en"
+    },
+    {
+      "host": "edyy.fa.us2.oraclecloud.com",
+      "site": "CX_2002",
+      "language": "en"
+    },
+    {
+      "host": "edsv.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "edyo.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "edsv.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "edyo.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "edmn.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "eeho.fa.us2.oraclecloud.com",
+      "site": "CX_45001",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "ClarendaleofStPeters",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "HeritageatBrentwood",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "allcommunityjobs",
+      "language": "en"
+    },
+    {
+      "host": "eeho.fa.us2.oraclecloud.com",
+      "site": "jobsearch",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "WindsoratCelebration",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "ClarendaleofAddison",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "AllJobs",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "TheLodgeofNorthbrook",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "BayshoreonHiltonHead",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "LauralParke",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "ClarendaleofMokena",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "Aldersly",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "TheRooseveltatSaltCreek",
+      "language": "en"
+    },
+    {
+      "host": "eexs.fa.us2.oraclecloud.com",
+      "site": "ClarendaleatBellevuePlace",
+      "language": "en"
+    },
+    {
+      "host": "efet.fa.us2.oraclecloud.com",
+      "site": "CX_1009",
+      "language": "vi"
+    },
+    {
+      "host": "eglz.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "eeim.fa.us2.oraclecloud.com",
+      "site": "CMEM",
+      "language": "en"
+    },
+    {
+      "host": "egmn.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "egln.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "egua.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "egsd.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "egnx.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "egpy.fa.us2.oraclecloud.com",
+      "site": "JoinAbt",
+      "language": "en"
+    },
+    {
+      "host": "egud.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "egoh.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "egmn.fa.us2.oraclecloud.com",
+      "site": "Harmonic",
+      "language": "en"
+    },
+    {
+      "host": "egqw.fa.us2.oraclecloud.com",
+      "site": "CX_13",
+      "language": "en"
+    },
+    {
+      "host": "eeik.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "eguq.fa.us2.oraclecloud.com",
+      "site": "MovingYouForward",
+      "language": "en"
+    },
+    {
+      "host": "egup.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "ehxr.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ehzq.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ehzq.fa.us2.oraclecloud.com",
+      "site": "GrantThorntonBermuda",
+      "language": "en"
+    },
+    {
+      "host": "ehnn.fa.us2.oraclecloud.com",
+      "site": "CX_7",
+      "language": "en"
+    },
+    {
+      "host": "ehnn.fa.us2.oraclecloud.com",
+      "site": "CX_4",
+      "language": "en"
+    },
+    {
+      "host": "ehnn.fa.us2.oraclecloud.com",
+      "site": "CX_10",
+      "language": "en"
+    },
+    {
+      "host": "ehnn.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ehxr.fa.us2.oraclecloud.com",
+      "site": "City-of-Atlanta-Careers",
+      "language": "en"
+    },
+    {
+      "host": "ehwy.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "ehzq.fa.us2.oraclecloud.com",
+      "site": "CX_4",
+      "language": "en"
+    },
+    {
+      "host": "ehwy.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "egug.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ehzq.fa.us2.oraclecloud.com",
+      "site": "GrantThorntonGibraltar",
+      "language": "en"
+    },
+    {
+      "host": "eiqg.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "ehuk.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "es"
+    },
+    {
+      "host": "ehap.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "ejko.fa.us2.oraclecloud.com",
+      "site": "CX_3",
+      "language": "en"
+    },
+    {
+      "host": "eipn.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ejko.fa.us2.oraclecloud.com",
+      "site": "CX_2",
+      "language": "en"
+    },
+    {
+      "host": "ejko.fa.us2.oraclecloud.com",
+      "site": "CX_5",
+      "language": "en"
+    },
+    {
+      "host": "ejlj.fa.us2.oraclecloud.com",
+      "site": "Badger",
+      "language": "fr-CA"
+    },
+    {
+      "host": "ejbi.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "ejof.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ejrz.fa.us2.oraclecloud.com",
+      "site": "CX_5001",
+      "language": "en"
+    },
+    {
+      "host": "ejof.fa.us2.oraclecloud.com",
+      "site": "BaylorCareers",
+      "language": "en"
+    },
+    {
+      "host": "ejwl.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "zh-TW"
+    },
+    {
+      "host": "ejvp.fa.us2.oraclecloud.com",
+      "site": "CX_7001",
+      "language": "en"
+    },
+    {
+      "host": "ejof.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "ejvp.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ejvp.fa.us2.oraclecloud.com",
+      "site": "CX_4001",
+      "language": "en"
+    },
+    {
+      "host": "ekkh.fa.us2.oraclecloud.com",
+      "site": "CX_2002",
+      "language": "en"
+    },
+    {
+      "host": "ekze.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "ekaw.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "elar.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "eluq.fa.us2.oraclecloud.com",
+      "site": "CX_2001",
+      "language": "en"
+    },
+    {
+      "host": "elcn.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "elcq.fa.us2.oraclecloud.com",
+      "site": "CX_2001",
+      "language": "en"
+    },
+    {
+      "host": "eljs.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "elrj.fa.us2.oraclecloud.com",
+      "site": "CX_9001",
+      "language": "en"
+    },
+    {
+      "host": "ekkt.fa.us2.oraclecloud.com",
+      "site": "CX_4001",
+      "language": "en"
+    },
+    {
+      "host": "eklm.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "ekkt.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "eluq-dev19.fa.us2.oraclecloud.com",
+      "site": "CX_2001",
+      "language": "en"
+    },
+    {
+      "host": "elyb.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "ejwl-dev7.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "eofe.fa.us2.oraclecloud.com",
+      "site": "BNY-Careers",
+      "language": "en"
+    },
+    {
+      "host": "elvp.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "emcm.fa.us2.oraclecloud.com",
+      "site": "WMCareers",
+      "language": "en"
+    },
+    {
+      "host": "emcm.fa.us2.oraclecloud.com",
+      "site": "CX_4001",
+      "language": "en"
+    },
+    {
+      "host": "emdz.fa.us2.oraclecloud.com",
+      "site": "CX_2001",
+      "language": "en"
+    },
+    {
+      "host": "emqz.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "emmr.fa.us2.oraclecloud.com",
+      "site": "City-of-Hendersonville-Career-Site",
+      "language": "en"
+    },
+    {
+      "host": "eodr.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "emvo.fa.us2.oraclecloud.com",
+      "site": "CX_3002",
+      "language": "en"
+    },
+    {
+      "host": "eobs.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "eohh.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "enmv.fa.us2.oraclecloud.com",
+      "site": "CX_2001",
+      "language": "en"
+    },
+    {
+      "host": "emsq.fa.us2.oraclecloud.com",
+      "site": "CX_4001",
+      "language": "en"
+    },
+    {
+      "host": "emcm-test.fa.us2.oraclecloud.com",
+      "site": "WMCareers",
+      "language": "en"
+    },
+    {
+      "host": "enuf.fa.us2.oraclecloud.com",
+      "site": "CX_8001",
+      "language": "es"
+    },
+    {
+      "host": "eney.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "eord.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "emor.fa.us2.oraclecloud.com",
+      "site": "CX_2001",
+      "language": "en"
+    },
+    {
+      "host": "eoje.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "epej.fa.us2.oraclecloud.com",
+      "site": "MTCEmployment",
+      "language": "en"
+    },
+    {
+      "host": "eolj.fa.us2.oraclecloud.com",
+      "site": "CX_2001",
+      "language": "en"
+    },
+    {
+      "host": "eoko.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "eolj.fa.us2.oraclecloud.com",
+      "site": "CX_3001",
+      "language": "en"
+    },
+    {
+      "host": "epyc.fa.us2.oraclecloud.com",
+      "site": "CLH-us",
+      "language": "en"
+    },
+    {
+      "host": "epej.fa.us2.oraclecloud.com",
+      "site": "ChurchEmployment",
+      "language": "en"
+    },
+    {
+      "host": "epyc.fa.us2.oraclecloud.com",
+      "site": "CLH-ca",
+      "language": "en"
+    },
+    {
+      "host": "eohm.fa.us2.oraclecloud.com",
+      "site": "CX_6004",
+      "language": "es"
+    },
+    {
+      "host": "epej.fa.us2.oraclecloud.com",
+      "site": "CX_2001",
+      "language": "en"
+    },
+    {
+      "host": "epyz.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "eour.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "erou.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "erhk.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ertr.fa.us2.oraclecloud.com",
+      "site": "CX_3001",
+      "language": "en"
+    },
+    {
+      "host": "erqh.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "erhk.fa.us2.oraclecloud.com",
+      "site": "CX_4",
+      "language": "en"
+    },
+    {
+      "host": "eqtm.fa.us2.oraclecloud.com",
+      "site": "fmolhs-careers",
+      "language": "en"
+    },
+    {
+      "host": "eqtm.fa.us2.oraclecloud.com",
+      "site": "CX_3001",
+      "language": "en"
+    },
+    {
+      "host": "erzb.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "ertd.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "erzb.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hbbq.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "ernh.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hcfa.fa.us2.oraclecloud.com",
+      "site": "AmnealCareers",
+      "language": "en"
+    },
+    {
+      "host": "hcfa.fa.us2.oraclecloud.com",
+      "site": "AmnealIndiaCareers",
+      "language": "en"
+    },
+    {
+      "host": "hckd.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hbcp.fa.us2.oraclecloud.com",
+      "site": "CX_6",
+      "language": "es"
+    },
+    {
+      "host": "hcgn.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hcfa.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "evac.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hcdt.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "hcal.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "hcex.fa.us2.oraclecloud.com",
+      "site": "Robotics",
+      "language": "en"
+    },
+    {
+      "host": "hcex.fa.us2.oraclecloud.com",
+      "site": "careers-telamon",
+      "language": "en"
+    },
+    {
+      "host": "hcjy.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hbcp.fa.us2.oraclecloud.com",
+      "site": "CX_2",
+      "language": "es"
+    },
+    {
+      "host": "hcml.fa.us2.oraclecloud.com",
+      "site": "CX_2",
+      "language": "en"
+    },
+    {
+      "host": "hcib.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "hcml.fa.us2.oraclecloud.com",
+      "site": "AEO-Careers",
+      "language": "en"
+    },
+    {
+      "host": "hcnz.fa.us2.oraclecloud.com",
+      "site": "NSFCareers",
+      "language": "en"
+    },
+    {
+      "host": "hckg.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hcnz.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "hckz.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hcor.fa.us2.oraclecloud.com",
+      "site": "CX_1001",
+      "language": "en"
+    },
+    {
+      "host": "hcnh.fa.us2.oraclecloud.com",
+      "site": "CX_4001",
+      "language": "es"
+    },
+    {
+      "host": "hcqq.fa.us2.oraclecloud.com",
+      "site": "CX_5004",
+      "language": "en"
+    },
+    {
+      "host": "hcrb.fa.us2.oraclecloud.com",
+      "site": "BostonBeerCareers",
+      "language": "en"
+    },
+    {
+      "host": "hcor.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hcrb.fa.us2.oraclecloud.com",
+      "site": "CX",
+      "language": "en"
+    },
+    {
+      "host": "hcps.fa.us2.oraclecloud.com",
+      "site": "CX_1",
+      "language": "en"
+    },
+    {
+      "host": "hcre.fa.us2.oraclecloud.com",
+      "site": "CX_3001",
+      "language": "en"
+    },
+    {
+      "host": "hcrw.fa.us2.oraclecloud.com",
+      "site": "CX_1",
       "language": "en"
     }
   ],
