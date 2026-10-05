@@ -23,6 +23,7 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from pathlib import Path
 from html import unescape as html_unescape
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -39,6 +40,18 @@ CONFIG_FILE = BASE / "config.json"
 SEEN_FILE = BASE / "seen_jobs.json"
 DISCOVERY_FILE = BASE / "discovered_ats.json"
 DISCOVERY_MAX_AGE = 24 * 60 * 60
+BOARD_HEALTH_FILE = BASE / "board_health.json"
+# A board must fail STALE_THRESHOLD *consecutive* full scans (not just one
+# blip) before it's considered dead and pruned from discovered_ats.json.
+# At a 30-min --loop this is ~1.5h of continuous failure — long enough to
+# rule out a transient network hiccup, short enough to stop wasting time on
+# boards that are genuinely gone.
+STALE_THRESHOLD = 3
+AUTO_DISCOVERED_PLATFORMS = {
+    "greenhouse", "lever", "ashby", "smartrecruiters", "workday",
+    "oraclecloud", "keka", "zohorecruit", "icims", "successfactors",
+    "breezyhr",
+}
 TIMEOUT = 20
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; JobRadar/1.0)"}
 
@@ -164,12 +177,19 @@ def _backend_skill_count(text: str) -> int:
 
 
 def location_ok(location: str, description: str, url: str = "") -> tuple:
+    """
+    STRICT India-only: a plain "Remote" with no country mentioned used to pass
+    (REMOTE_LOCATION matched regardless of country) — that is exactly what was
+    letting foreign remote jobs through. Now we require explicit India
+    evidence; remote-but-unspecified-country jobs are rejected too, same as
+    remote-but-foreign jobs. INDIA_LOCATION itself already covers patterns
+    like "Remote - India" / "Remote, India" so genuinely Indian remote roles
+    still pass — only remote jobs with NO India signal get dropped.
+    """
     evidence = " ".join([location or "", description or "", url or ""])
-    if REMOTE_LOCATION.search(evidence):
-        return True, "remote"
     if INDIA_LOCATION.search(evidence):
         return True, "India location"
-    return False, "India/remote location verify nahi hui"
+    return False, "India signal nahi mila (foreign/unspecified remote bhi reject)"
 
 
 def job_matches(title: str, description: str, location: str = "", url: str = "", source: str = "") -> tuple:
@@ -251,15 +271,20 @@ def job_matches(title: str, description: str, location: str = "", url: str = "",
 
 # --------------------------------------------------------------- fetchers ---
 
-def _get(url, **kw):
+def _get(url, timeout=None, max_retries=None, **kw):
     # 2 tries instead of 3, and a shorter capped backoff — with thousands of
     # boards being scanned, a slow/dead board should fail fast, not eat
     # 5+10+15s of wall-clock time each on its own thread.
-    max_retries = 2
+    # timeout/max_retries can be overridden per-call — exploratory crawlers
+    # (iCIMS/SuccessFactors probing possibly-dead hosts) pass a short timeout
+    # and max_retries=1 so one unresponsive host doesn't eat 40-140s.
+    max_retries = max_retries if max_retries is not None else 2
+    req_timeout = timeout if timeout is not None else TIMEOUT
+    headers = kw.pop("headers", None) or HEADERS
 
     for attempt in range(max_retries):
         try:
-            r = SESSION.get(url, headers=HEADERS, timeout=TIMEOUT, **kw)
+            r = SESSION.get(url, headers=headers, timeout=req_timeout, **kw)
         except requests.RequestException:
             if attempt == max_retries - 1:
                 raise
@@ -267,14 +292,13 @@ def _get(url, **kw):
             continue
 
         if r.status_code in (429, 500, 502, 503, 504):
-            retry_after = r.headers.get("Retry-After")
-
-            try:
-                wait = min(int(retry_after) if retry_after else 3 * (attempt + 1), 8)
-            except ValueError:
-                wait = min(3 * (attempt + 1), 8)
-
-            time.sleep(wait)
+            if attempt < max_retries - 1:
+                retry_after = r.headers.get("Retry-After")
+                try:
+                    wait = min(int(retry_after) if retry_after else 3 * (attempt + 1), 8)
+                except ValueError:
+                    wait = min(3 * (attempt + 1), 8)
+                time.sleep(wait)
             continue
 
         r.raise_for_status()
@@ -283,6 +307,34 @@ def _get(url, **kw):
     raise RuntimeError(
     	f"HTTP error after {max_retries} retries: {url}"
     )
+
+
+def _post(url, **kw):
+    """Same retry/backoff behaviour as _get(), for POST (Workday's CXS API)."""
+    max_retries = 2
+    headers = kw.pop("headers", None) or HEADERS
+    for attempt in range(max_retries):
+        try:
+            r = SESSION.post(url, headers=headers, timeout=TIMEOUT, **kw)
+        except requests.RequestException:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+            continue
+
+        if r.status_code in (429, 500, 502, 503, 504):
+            retry_after = r.headers.get("Retry-After")
+            try:
+                wait = min(int(retry_after) if retry_after else 3 * (attempt + 1), 8)
+            except ValueError:
+                wait = min(3 * (attempt + 1), 8)
+            time.sleep(wait)
+            continue
+
+        r.raise_for_status()
+        return r
+
+    raise RuntimeError(f"HTTP error after {max_retries} retries: {url}")
 
 
 def _quick_title_ok(title: str) -> bool:
@@ -502,14 +554,13 @@ def fetch_workday(cfg):
     try:
         career_url = f"{base}/{site}"
 
-        r = requests.get(
+        r = _get(
             career_url,
             headers={
                 **HEADERS,
                 "Accept": "text/html,application/xhtml+xml"
             },
             allow_redirects=True,
-            timeout=15
         )
 
         # Workday often redirects:
@@ -580,29 +631,31 @@ def fetch_workday(cfg):
             }
 
             try:
-                r = requests.post(
+                r = _post(
                     api,
                     json=payload,
                     headers={
-                        **HEADERS,
                         "Accept": "application/json",
                         "Content-Type": "application/json"
                     },
-                    timeout=20
                 )
-            except requests.RequestException:
-                return
-
-            if r.status_code != 200:
-                return
+            except (requests.RequestException, RuntimeError):
+                # A transient failure (rate limit, timeout, 5xx) on THIS
+                # tenant/term/page should not nuke every other term or every
+                # other page already collected. _post() already retried
+                # internally; if it still failed, skip to the next search
+                # term instead of aborting the whole tenant. This was the
+                # main reason real Java openings were being missed — one
+                # blip used to kill the entire fetch for that company.
+                break
 
             try:
                 data = r.json()
             except ValueError:
-                return
+                break
 
             if not isinstance(data, dict):
-                return
+                break
 
             posts = data.get("jobPostings") or []
 
@@ -696,6 +749,35 @@ def fetch_workday(cfg):
 
             if total and offset >= total:
                 break
+
+
+def fetch_breezyhr(slug):
+    """BreezyHR public JSON feed — no auth needed."""
+    url = f"https://{slug}.breezy.hr/json"
+    try:
+        data = _get(url).json()
+    except Exception:
+        return
+    if not isinstance(data, list):
+        return
+    for j in data:
+        if not isinstance(j, dict):
+            continue
+        jid = str(j.get("friendly_id") or j.get("id") or "").strip()
+        title = str(j.get("name") or j.get("title") or "").strip()
+        if not jid or not title:
+            continue
+        loc = j.get("location") or {}
+        location = loc.get("name", "") if isinstance(loc, dict) else str(loc or "")
+        yield {
+            "id": f"breezyhr:{slug}:{jid}",
+            "title": title,
+            "company": slug,
+            "location": location,
+            "url": j.get("url") or f"https://{slug}.breezy.hr/p/{jid}",
+            "description": j.get("description") or "",
+            "source": "BreezyHR",
+        }
 
 
 def fetch_oraclecloud(cfg):
@@ -876,6 +958,219 @@ def fetch_keka(cfg):
         if not jid or not title: continue
         loc = j.get('location') or ', '.join(str(x) for x in [j.get('city'),j.get('state'),j.get('country')] if x)
         yield {'id':f'keka:{tenant}:{jid}','title':title,'company':tenant,'location':loc,'url':j.get('jobUrl') or j.get('url') or f'{base}/jobdetails/{jid}','description':j.get('description') or j.get('jobDescription') or j.get('summary') or '','source':'Keka'}
+
+
+# ---------------------------------------------------------------------------
+# Generic HTML/JSON-LD helpers — shared by iCIMS and SAP SuccessFactors below.
+# Unlike Greenhouse/Lever/Ashby, these platforms don't have one documented
+# public JSON API that works the same for every company. Many of their career
+# pages DO embed Schema.org JobPosting structured data for SEO though, so we
+# crawl the listing page for job links and pull JobPosting JSON-LD off each.
+# This is best-effort: tenants whose career page is a pure JS/SPA build
+# (common on newer SuccessFactors sites) won't show any job links in the raw
+# HTML, and will silently yield 0 jobs here rather than erroring.
+# ---------------------------------------------------------------------------
+
+def _clean_html_text(value):
+    if not value:
+        return ""
+    value = html_unescape(str(value))
+    value = re.sub(r"<script\b[^>]*>.*?</script>", " ", value, flags=re.I | re.S)
+    value = re.sub(r"<style\b[^>]*>.*?</style>", " ", value, flags=re.I | re.S)
+    value = re.sub(r"<[^>]+>", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _extract_jsonld_jobs(page, page_url):
+    jobs = []
+    scripts = re.findall(
+        r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+        page, flags=re.I | re.S,
+    )
+    for raw in scripts:
+        try:
+            obj = json.loads(html_unescape(raw.strip()))
+        except Exception:
+            continue
+        objects = []
+        if isinstance(obj, list):
+            objects.extend(obj)
+        elif isinstance(obj, dict):
+            if "@graph" in obj and isinstance(obj["@graph"], list):
+                objects.extend(obj["@graph"])
+            else:
+                objects.append(obj)
+        for item in objects:
+            if not isinstance(item, dict):
+                continue
+            item_type = item.get("@type", "")
+            is_job = (
+                any(str(x).lower() == "jobposting" for x in item_type)
+                if isinstance(item_type, list)
+                else str(item_type).lower() == "jobposting"
+            )
+            if not is_job:
+                continue
+            title = item.get("title") or item.get("name") or ""
+            description = item.get("description") or ""
+            location = ""
+            job_location = item.get("jobLocation")
+            if isinstance(job_location, list):
+                job_location = job_location[0] if job_location else {}
+            if isinstance(job_location, dict):
+                address = job_location.get("address") or {}
+                if isinstance(address, dict):
+                    parts = [address.get("addressLocality"), address.get("addressRegion"),
+                             address.get("addressCountry")]
+                    location = ", ".join(str(x) for x in parts if x)
+            raw_url = item.get("url") or page_url
+            job_url = raw_url if str(raw_url).startswith("http") else urljoin(page_url, str(raw_url))
+            jobs.append({
+                "title": _clean_html_text(title),
+                "description": _clean_html_text(description),
+                "location": _clean_html_text(location),
+                "url": job_url,
+            })
+    return jobs
+
+
+def _find_job_links(page, base_url, host, url_hints):
+    links = {}
+    for m in re.finditer(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',
+                          page, flags=re.I | re.S):
+        href, text = m.group(1), _clean_html_text(m.group(2))
+        href = html_unescape(href).strip()
+        if href.startswith(("javascript:", "mailto:", "tel:", "#")):
+            continue
+        absolute = urljoin(base_url, href)
+        if not absolute.startswith(("http://", "https://")):
+            continue
+        parsed = urlparse(absolute)
+        if host and parsed.netloc.lower() != host.lower():
+            continue
+        if any(p in absolute.lower() for p in url_hints):
+            links[absolute] = text
+    return links
+
+
+def _crawl_jsonld_board(listing_urls, host, max_jobs=60):
+    """Fetch the first working listing URL, pull plausible job links from it
+    (pre-filtered by anchor-text relevance), then fetch those concurrently
+    and extract JobPosting JSON-LD from each. Returns a list of job dicts.
+
+    This is used for iCIMS/SuccessFactors, where most *discovered* hosts turn
+    out to be false positives (host resolves, but there's no real job board,
+    or it's a pure-JS page with nothing in the static HTML). Those dead hosts
+    used to be tried SEQUENTIALLY with the normal 20s x 2-retry budget —
+    worst case ~45s PER listing URL, x3 URLs = ~2+ minutes on a single dead
+    board. With ~1000+ iCIMS boards that added up to the multi-hour slowdown.
+    Fix: probe all listing URLs CONCURRENTLY with a short, no-retry timeout —
+    a real board responds in well under 8s; anything slower than that is
+    almost certainly a dead/false-positive host not worth waiting on.
+    """
+    def _probe(u):
+        try:
+            r = _get(u, timeout=8, max_retries=1)
+        except Exception:
+            return None
+        if r.status_code == 200 and r.text:
+            return r.text, (r.url or u)
+        return None
+
+    page, page_url = None, None
+    with ThreadPoolExecutor(max_workers=len(listing_urls)) as ex:
+        futs = {ex.submit(_probe, u): u for u in listing_urls}
+        for fut in as_completed(futs):
+            res = fut.result()
+            if res:
+                page, page_url = res
+                break
+    if not page:
+        return []
+
+    links = _find_job_links(page, page_url, host, ("/job", "/career", "jobid", "req"))
+    candidates = [u for u, t in links.items() if _quick_title_ok(t) or not t.strip()][:max_jobs]
+    if not candidates:
+        return []
+
+    def _fetch(u):
+        try:
+            r = _get(u, timeout=10, max_retries=1)
+        except Exception:
+            return None
+        if r.status_code != 200 or not r.text:
+            return None
+        return r.text, (r.url or u)
+
+    out = []
+    with ThreadPoolExecutor(max_workers=min(10, len(candidates))) as ex:
+        futs = [ex.submit(_fetch, u) for u in candidates]
+        for fut in as_completed(futs):
+            res = fut.result()
+            if res:
+                job_page, final_url = res
+                out.extend(_extract_jsonld_jobs(job_page, final_url))
+    return out
+
+
+def fetch_icims(cfg):
+    """Best-effort iCIMS fetcher via JSON-LD scraping (see module note above)."""
+    host = str(cfg.get("host", "")).strip() if isinstance(cfg, dict) else str(cfg).strip()
+    host = host.replace("https://", "").replace("http://", "").strip("/")
+    if not host:
+        return
+    if ".icims.com" not in host:
+        host = f"{host}.icims.com"
+    base = f"https://{host}"
+
+    jobs = _crawl_jsonld_board([f"{base}/jobs/search", f"{base}/jobs/intro", base], host)
+    for j in jobs:
+        if not j["title"]:
+            continue
+        yield {
+            "id": f"icims:{host}:{j['url']}",
+            "title": j["title"],
+            "company": host.split(".")[0],
+            "location": j["location"],
+            "url": j["url"],
+            "description": j["description"],
+            "source": "iCIMS",
+        }
+
+
+def fetch_successfactors(cfg):
+    """Best-effort SAP SuccessFactors fetcher via JSON-LD scraping. Pure-SPA
+    tenants (job list loaded by client-side JS) will yield 0 here — a known
+    limitation, see module note above."""
+    host = str(cfg.get("host", "")).strip() if isinstance(cfg, dict) else str(cfg).strip()
+    company = str(cfg.get("company", "")).strip() if isinstance(cfg, dict) else ""
+    host = host.replace("https://", "").replace("http://", "").strip("/")
+    if not host and not company:
+        return
+
+    if host:
+        base = f"https://{host}"
+        listing_urls = [base]
+        if company:
+            listing_urls.append(f"{base}/career?company={company}")
+    else:
+        base = "https://career5.successfactors.com"
+        listing_urls = [f"{base}/career?company={company}"]
+
+    jobs = _crawl_jsonld_board(listing_urls, host or urlparse(base).netloc)
+    label = host.split(".")[0] if host else company
+    for j in jobs:
+        if not j["title"]:
+            continue
+        yield {
+            "id": f"successfactors:{label}:{j['url']}",
+            "title": j["title"],
+            "company": label,
+            "location": j["location"],
+            "url": j["url"],
+            "description": j["description"],
+            "source": "SAP SuccessFactors",
+        }
 
 
 def fetch_zohorecruit(cfg):
@@ -1543,6 +1838,9 @@ FETCHERS = {
     "oraclecloud": fetch_oraclecloud,
     "keka": fetch_keka,
     "zohorecruit": fetch_zohorecruit,
+    "icims": fetch_icims,
+    "successfactors": fetch_successfactors,
+    "breezyhr": fetch_breezyhr,
     "remoteok": fetch_remoteok,
     "arbeitnow": fetch_arbeitnow,
     "adzuna": fetch_adzuna,
@@ -1668,6 +1966,9 @@ def load_discovered_sources():
         "oraclecloud",
         "keka",
         "zohorecruit",
+        "icims",
+        "successfactors",
+        "breezyhr",
     ):
         values = data.get(platform, [])
 
@@ -1702,16 +2003,53 @@ def _target_label(platform, target):
         return target
     if platform == "oraclecloud":
         return f"{target.get('host', '?')}/{target.get('site', '?')}"
-    if platform == "zohorecruit":
-        return target.get("host", "?")
+    if platform in ("zohorecruit", "icims", "successfactors"):
+        return target.get("host", "?") or target.get("company", "?")
     return target.get("tenant", "?")
+
+
+def _board_key(platform, target):
+    if isinstance(target, str):
+        return f"{platform}:{target}"
+    return f"{platform}:" + json.dumps(target, sort_keys=True)
+
+
+def prune_stale_boards(stale_entries):
+    """
+    Removes boards that failed STALE_THRESHOLD consecutive scans from
+    discovered_ats.json, so the next discovery/load cycle stops re-scanning
+    a board that's dead (company deleted it / moved ATS / domain gone).
+    Only touches auto-discovered platforms — anything manually added in
+    config.json is never auto-removed.
+    """
+    if not stale_entries:
+        return
+    try:
+        data = json.loads(DISCOVERY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    changed = False
+    for platform, target in stale_entries:
+        if platform not in AUTO_DISCOVERED_PLATFORMS:
+            continue
+        lst = data.get(platform)
+        if not isinstance(lst, list):
+            continue
+        before = len(lst)
+        data[platform] = [t for t in lst if t != target]
+        if len(data[platform]) != before:
+            changed = True
+    if changed:
+        tmp = DISCOVERY_FILE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(DISCOVERY_FILE)
 
 
 def _run_one_target(platform, fetcher, target, label):
     try:
-        return platform, label, list(fetcher(target)), None
+        return platform, label, target, list(fetcher(target)), None
     except Exception as e:
-        return platform, label, [], e
+        return platform, label, target, [], e
 
 
 def run_once(cfg, test=False):
@@ -1738,18 +2076,31 @@ def run_once(cfg, test=False):
     print(f"  scanning {total} board(s) across {len(cfg.get('sources', {}))} platform(s) "
           f"with {max_workers} parallel workers...")
 
+    health = load_json(BOARD_HEALTH_FILE, {})
+    stale_entries = []
+
     t0 = time.time()
     done = 0
     errors = 0
     with ThreadPoolExecutor(max_workers=max(1, max_workers)) as ex:
         futures = [ex.submit(_run_one_target, p, f, t, l) for p, f, t, l in tasks]
         for fut in as_completed(futures):
-            platform, label, jobs, err = fut.result()
+            platform, label, target, jobs, err = fut.result()
             done += 1
+            key = _board_key(platform, target)
+
             if err:
                 errors += 1
-                print(f"  [{platform}/{label}] error: {err}", file=sys.stderr)
+                health[key] = health.get(key, 0) + 1
+                print(f"  [{platform}/{label}] error ({health[key]}/{STALE_THRESHOLD}): {err}",
+                      file=sys.stderr)
+                if health[key] >= STALE_THRESHOLD:
+                    stale_entries.append((platform, target))
                 continue
+
+            # Succeeded this scan — board is alive, reset its failure streak.
+            health.pop(key, None)
+
             hits = 0
             for job in jobs:
                 ok, reason = job_matches(job["title"], job["description"], job.get("location", ""), job.get("url", ""), job.get("source", ""))
@@ -1765,6 +2116,16 @@ def run_once(cfg, test=False):
             if done % 200 == 0 or done == total:
                 elapsed = time.time() - t0
                 print(f"  ... {done}/{total} boards scanned ({elapsed:.0f}s elapsed, {errors} errors)")
+
+    if stale_entries:
+        prune_stale_boards(stale_entries)
+        for platform, target in stale_entries:
+            health.pop(_board_key(platform, target), None)
+        print(f"  [stale] removed {len(stale_entries)} dead board(s), won't be scanned again:")
+        for platform, target in stale_entries:
+            print(f"    - {platform}/{_target_label(platform, target)}")
+
+    BOARD_HEALTH_FILE.write_text(json.dumps(health, indent=0))
 
     print(f"\n  scan of {total} boards finished in {time.time()-t0:.1f}s")
     print(f"=== {len(new_jobs)} NAYI matching job(s) ===")
