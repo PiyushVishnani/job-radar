@@ -100,6 +100,26 @@ SEARCH_QUERIES = {
         'site:zohorecruit.in "Software Engineer"',
         'site:zohorecruit.in "Java Developer"',
     ],
+    "smartrecruiters": [
+        'site:jobs.smartrecruiters.com "Java" "Software Engineer"',
+        'site:jobs.smartrecruiters.com "Backend Engineer"',
+        'site:jobs.smartrecruiters.com "Software Engineer" India',
+    ],
+    "icims": [
+        'site:icims.com "Java Developer" India',
+        'site:icims.com "Software Engineer" India',
+        'site:icims.com "Backend Engineer"',
+    ],
+    "successfactors": [
+        'site:successfactors.com "Java Developer" India',
+        'site:successfactors.com "Software Engineer" India career',
+        'site:successfactors.com "Backend Engineer"',
+    ],
+    "breezyhr": [
+        'site:breezy.hr "Java Developer"',
+        'site:breezy.hr "Software Engineer" India',
+        'site:breezy.hr "Backend Engineer"',
+    ],
 }
 
 
@@ -157,7 +177,7 @@ def get_latest_commoncrawl_index():
         return None
 
 
-def cc_search(index_id, pattern, limit=50000):
+def cc_search(index_id, pattern, limit=20000):
     if not index_id:
         return []
     endpoint = f"https://index.commoncrawl.org/{index_id}-index"
@@ -168,22 +188,46 @@ def cc_search(index_id, pattern, limit=50000):
         "collapse": "urlkey",
         "pageSize": str(limit),
     }
-    try:
-        r = requests.get(endpoint, params=params, timeout=SEARCH_TIMEOUT, headers=HEADERS)
-    except requests.RequestException:
-        return []
-    if r.status_code != 200:
-        return []
-    urls = []
-    for line in r.text.splitlines():
+
+    # 2 attempts with a short backoff — a big query (pageSize=20000, was
+    # 50000) is more likely to transiently time out or get load-shed by
+    # Common Crawl than a small one, which is consistent with what you saw:
+    # small queries (Lever, Keka) kept working while large ones returned 0.
+    # One retry turns a transient blip into a success instead of silent 0.
+    for attempt in range(2):
         try:
-            obj = json.loads(line)
-            url = obj.get("url")
-            if url:
-                urls.append(url)
-        except json.JSONDecodeError:
+            r = requests.get(endpoint, params=params, timeout=SEARCH_TIMEOUT, headers=HEADERS)
+        except requests.RequestException as e:
+            print(f"    [cc] {pattern!r} — request error (attempt {attempt+1}): "
+                  f"{type(e).__name__}: {e}")
+            time.sleep(2)
             continue
-    return unique(urls)
+
+        if r.status_code != 200:
+            print(f"    [cc] {pattern!r} — HTTP {r.status_code} (attempt {attempt+1}), "
+                  f"body starts: {r.text[:150]!r}")
+            time.sleep(2)
+            continue
+
+        urls = []
+        for line in r.text.splitlines():
+            try:
+                obj = json.loads(line)
+                url = obj.get("url")
+                if url:
+                    urls.append(url)
+            except json.JSONDecodeError:
+                continue
+
+        if not urls and r.text.strip():
+            # Got 200 with a non-empty body but extracted nothing — worth
+            # knowing about, this is different from a clean "no matches".
+            print(f"    [cc] {pattern!r} — HTTP 200 but 0 URLs parsed from "
+                  f"{len(r.text)} chars of body (format may have changed)")
+
+        return unique(urls)
+
+    return []
 
 
 # Common Crawl URL patterns per platform — these find EVERY company on that
@@ -195,7 +239,13 @@ CC_PATTERNS = {
     "greenhouse": ["*.greenhouse.io/*"],
     "lever": ["jobs.lever.co/*", "jobs.eu.lever.co/*"],
     "ashby": ["jobs.ashbyhq.com/*"],
-    "workday": ["*.wd*.myworkdayjobs.com/*"],
+    # NOTE: "*.wd*.myworkdayjobs.com/*" (old pattern) was invalid — Common
+    # Crawl only supports a leading "*." for domain-wide match OR a trailing
+    # "*" for prefix match, NOT a wildcard in the middle of a hostname like
+    # "wd*". That pattern silently matched nothing, which is why Workday was
+    # returning 0 candidates. "*.myworkdayjobs.com/*" (domain-wide) correctly
+    # catches every tenant's subdomain regardless of which wdN shard it's on.
+    "workday": ["*.myworkdayjobs.com/*"],
     "oraclecloud": ["*.oraclecloud.com/hcmUI/CandidateExperience/*"],
     "keka": ["*.keka.com/careers*", "*.keka.com/*"],
     "zohorecruit": [
@@ -203,6 +253,13 @@ CC_PATTERNS = {
         "*.zohorecruit.com/jobs/*", "*.zohorecruit.in/jobs/*",
         "*.zohorecruit.com/recruit/*", "*.zohorecruit.in/recruit/*",
     ],
+    "smartrecruiters": ["jobs.smartrecruiters.com/*"],
+    # iCIMS/SuccessFactors tenant hosts aren't a single clean CC pattern (way
+    # too many totally unrelated subdomains share *.icims.com etc.), so these
+    # two rely mainly on the Bing/DDG search queries above rather than CC.
+    "icims": ["*.icims.com/jobs/*"],
+    "successfactors": ["career5.successfactors.com/career*", "*.successfactors.com/career*"],
+    "breezyhr": ["*.breezy.hr/*"],
 }
 
 _CC_INDEX_ID = None  # set once in main(), reused by every discover_*() call
@@ -210,8 +267,15 @@ _CC_INDEX_ID = None  # set once in main(), reused by every discover_*() call
 
 def cc_urls_for(platform):
     urls = []
-    for pattern in CC_PATTERNS.get(platform, []):
+    patterns = CC_PATTERNS.get(platform, [])
+    for i, pattern in enumerate(patterns):
         urls.extend(cc_search(_CC_INDEX_ID, pattern))
+        # Small pause between CC queries — avoids looking like abuse to
+        # their server when hitting 10 platforms x multiple patterns each
+        # back-to-back (this is what got a home IP temporarily rate-limited
+        # before). Costs a few seconds total, much cheaper than a block.
+        if i < len(patterns) - 1:
+            time.sleep(1.5)
     return urls
 
 
@@ -242,6 +306,10 @@ def load_registry():
         "oraclecloud": [],
         "keka": [],
         "zohorecruit": [],
+        "smartrecruiters": [],
+        "icims": [],
+        "successfactors": [],
+        "breezyhr": [],
     }
 
     if not DISCOVERY_FILE.exists():
@@ -852,6 +920,217 @@ def discover_keka():
 
 
 # ---------------------------------------------------------------------------
+# SmartRecruiters
+# ---------------------------------------------------------------------------
+
+SMARTRECRUITERS_RE = re.compile(
+    r"https?://jobs\.smartrecruiters\.com/([^/?#]+)",
+    re.I,
+)
+
+MAX_SMARTRECRUITERS = 3000
+
+
+def discover_smartrecruiters():
+    print("\n[SmartRecruiters] discovering...")
+    slugs = set()
+
+    for url in search_urls("smartrecruiters"):
+        match = SMARTRECRUITERS_RE.search(url)
+        if match:
+            slug = match.group(1).lower()
+            if re.fullmatch(r"[a-z0-9][a-z0-9_.-]{1,80}", slug):
+                slugs.add(slug)
+
+    candidates = sorted(slugs)[:MAX_SMARTRECRUITERS]
+    print(f"  candidates: {len(candidates)}")
+
+    def check(slug):
+        r = get(f"https://api.smartrecruiters.com/v1/companies/{slug}/postings",
+                params={"limit": "1"})
+        if not r or r.status_code != 200:
+            return None
+        try:
+            data = r.json()
+            if isinstance(data, dict) and "content" in data:
+                return slug
+        except Exception:
+            pass
+        return None
+
+    valid = []
+    with ThreadPoolExecutor(max_workers=30) as executor:
+        futures = [executor.submit(check, slug) for slug in candidates]
+        for future in as_completed(futures):
+            try:
+                value = future.result()
+                if value:
+                    valid.append(value)
+            except Exception:
+                pass
+
+    print(f"  valid boards: {len(valid)}")
+    return sorted(set(valid))
+
+
+# ---------------------------------------------------------------------------
+# iCIMS
+# ---------------------------------------------------------------------------
+# No single documented public API across tenants (unlike Greenhouse/Lever) —
+# we just confirm the host resolves and has a jobs page; job_radar.py's
+# JSON-LD scraper then does the real work per-tenant.
+
+ICIMS_RE = re.compile(
+    r"https?://([A-Za-z0-9-]+(?:-[A-Za-z0-9]+)*\.icims\.com)",
+    re.I,
+)
+
+MAX_ICIMS = 1500
+
+
+def discover_icims():
+    print("\n[iCIMS] discovering...")
+    hosts = set()
+
+    for url in search_urls("icims"):
+        match = ICIMS_RE.search(url)
+        if match:
+            hosts.add(match.group(1).lower())
+
+    candidates = sorted(hosts)[:MAX_ICIMS]
+    print(f"  candidates: {len(candidates)}")
+
+    def check(host):
+        for path in ("/jobs/search", "/jobs/intro", "/"):
+            r = get(f"https://{host}{path}")
+            if r and r.status_code == 200 and r.text:
+                return {"host": host}
+        return None
+
+    valid = []
+    with ThreadPoolExecutor(max_workers=30) as executor:
+        futures = [executor.submit(check, host) for host in candidates]
+        for future in as_completed(futures):
+            try:
+                value = future.result()
+                if value:
+                    valid.append(value)
+            except Exception:
+                pass
+
+    print(f"  valid boards: {len(valid)}")
+    return unique(valid)
+
+
+# ---------------------------------------------------------------------------
+# SAP SuccessFactors
+# ---------------------------------------------------------------------------
+# Same caveat as iCIMS, plus: many SuccessFactors career sites are JS SPAs
+# that job_radar.py's static-HTML scraper can't read. We still register the
+# board — it costs one cheap HTTP check per scan either way — but expect a
+# meaningful fraction of these to legitimately return 0 jobs every time.
+
+SUCCESSFACTORS_RE = re.compile(
+    # Old pattern required "company=" to be the FIRST query param
+    # ("/career?company=X"). Real URLs often have other params first, e.g.
+    # "/career?career_ns=job_listing&company=X" — that never matched, which
+    # is why candidates was 0 despite Common Crawl finding 16 raw URLs.
+    # Now matches "company=" anywhere in the query string.
+    r"https?://([A-Za-z0-9.-]+\.successfactors\.com)/career[^?#]*\?[^#]*\bcompany=([A-Za-z0-9_]+)",
+    re.I,
+)
+
+MAX_SUCCESSFACTORS = 1500
+
+
+def discover_successfactors():
+    print("\n[SAP SuccessFactors] discovering...")
+    found = {}
+
+    for url in search_urls("successfactors"):
+        match = SUCCESSFACTORS_RE.search(unquote(url))
+        if match:
+            host, company = match.group(1).lower(), match.group(2)
+            found[(host, company)] = {"host": host, "company": company}
+
+    candidates = list(found.values())[:MAX_SUCCESSFACTORS]
+    print(f"  candidates: {len(candidates)}")
+
+    def check(target):
+        r = get(f"https://{target['host']}/career?company={target['company']}")
+        if r and r.status_code == 200 and r.text:
+            return target
+        return None
+
+    valid = []
+    with ThreadPoolExecutor(max_workers=30) as executor:
+        futures = [executor.submit(check, target) for target in candidates]
+        for future in as_completed(futures):
+            try:
+                value = future.result()
+                if value:
+                    valid.append(value)
+            except Exception:
+                pass
+
+    print(f"  valid boards: {len(valid)}")
+    return unique(valid)
+
+
+# ---------------------------------------------------------------------------
+# BreezyHR
+# ---------------------------------------------------------------------------
+
+BREEZYHR_RE = re.compile(
+    r"https?://([A-Za-z0-9-]+)\.breezy\.hr",
+    re.I,
+)
+
+MAX_BREEZYHR = 2000
+
+
+def discover_breezyhr():
+    print("\n[BreezyHR] discovering...")
+    slugs = set()
+
+    for url in search_urls("breezyhr"):
+        match = BREEZYHR_RE.search(url)
+        if match:
+            slug = match.group(1).lower()
+            if slug not in ("www", "app") and re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,80}", slug):
+                slugs.add(slug)
+
+    candidates = sorted(slugs)[:MAX_BREEZYHR]
+    print(f"  candidates: {len(candidates)}")
+
+    def check(slug):
+        r = get(f"https://{slug}.breezy.hr/json")
+        if not r or r.status_code != 200:
+            return None
+        try:
+            data = r.json()
+            if isinstance(data, list):
+                return slug
+        except Exception:
+            pass
+        return None
+
+    valid = []
+    with ThreadPoolExecutor(max_workers=30) as executor:
+        futures = [executor.submit(check, slug) for slug in candidates]
+        for future in as_completed(futures):
+            try:
+                value = future.result()
+                if value:
+                    valid.append(value)
+            except Exception:
+                pass
+
+    print(f"  valid boards: {len(valid)}")
+    return sorted(set(valid))
+
+
+# ---------------------------------------------------------------------------
 # Zoho Recruit
 # ---------------------------------------------------------------------------
 
@@ -1022,15 +1301,25 @@ def main():
 
     registry = load_registry()
 
-    results = {
-        "greenhouse": discover_greenhouse(),
-        "lever": discover_lever(),
-        "ashby": discover_ashby(),
-        "workday": discover_workday(),
-        "oraclecloud": discover_oraclecloud(),
-        "keka": discover_keka(),
-        "zohorecruit": discover_zohorecruit(),
-    }
+    # One platform at a time with a short pause between, so Common Crawl sees
+    # a steady trickle across the whole run instead of 10 platforms' worth of
+    # large queries back-to-back.
+    results = {}
+    for platform, discover_fn in (
+        ("greenhouse", discover_greenhouse),
+        ("lever", discover_lever),
+        ("ashby", discover_ashby),
+        ("workday", discover_workday),
+        ("oraclecloud", discover_oraclecloud),
+        ("keka", discover_keka),
+        ("zohorecruit", discover_zohorecruit),
+        ("smartrecruiters", discover_smartrecruiters),
+        ("icims", discover_icims),
+        ("successfactors", discover_successfactors),
+        ("breezyhr", discover_breezyhr),
+    ):
+        results[platform] = discover_fn()
+        time.sleep(2)
 
     for platform, fresh in results.items():
         update_platform(registry, platform, fresh)
@@ -1052,6 +1341,10 @@ def main():
         "oraclecloud",
         "keka",
         "zohorecruit",
+        "smartrecruiters",
+        "icims",
+        "successfactors",
+        "breezyhr",
     ):
         print(
             f"{key.title():15} total: "
